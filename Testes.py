@@ -1,123 +1,124 @@
 import pygame
-from collections import deque
 
-# ---- DIREÇÕES E CONSTANTES ----
-NORTH, EAST, SOUTH, WEST = 0, 1, 2, 3
-DIRS = [NORTH, EAST, SOUTH, WEST]
-DIR_OFFSETS = {
-    NORTH: (-1, 0),
-    EAST:  (0, 1),
-    SOUTH: (1, 0),
-    WEST:  (0, -1)
-}
-OPPOSITE = {NORTH: SOUTH, EAST: WEST, SOUTH: NORTH, WEST: EAST}
+# --- COLE AQUI SUA LISTA GERADA ---
+WALL_LIST = [
+    (8, 8, 'N'),
+    (8, 8, 'S'),
+    (8, 5, 'N'),
+    (5, 5, 'W'),
+]
+
+# --- CONSTANTES ---
 SIZE = 16
 CELL_SIZE = 30
 WALL_WIDTH = 2
 MARGIN = 20
 WINDOW_SIZE = SIZE * CELL_SIZE + 2 * MARGIN
 
-# ---- CLASSE DA CÉLULA ----
-class Cell:
-    def __init__(self):
-        self.walls = 0b0000  # 4 bits: NESW
-        self.visited = False
-        self.distance = 255
+# --- DIREÇÕES ---
+DIRS = {'N': (0, -1), 'E': (1, 0), 'S': (0, 1), 'W': (-1, 0)}
+DIR_LINES = {
+    'N': lambda x, y: [(x, y), (x + CELL_SIZE, y)],
+    'S': lambda x, y: [(x, y + CELL_SIZE), (x + CELL_SIZE, y + CELL_SIZE)],
+    'E': lambda x, y: [(x + CELL_SIZE, y), (x + CELL_SIZE, y + CELL_SIZE)],
+    'W': lambda x, y: [(x, y), (x, y + CELL_SIZE)],
+}
 
-    def set_wall(self, direction):
-        self.walls |= (1 << direction)
-
-    def has_wall(self, direction):
-        return bool(self.walls & (1 << direction))
-
-# ---- MAPA DO LABIRINTO ----
-maze = [[Cell() for _ in range(SIZE)] for _ in range(SIZE)]
-
-def add_wall(x, y, direction):
-    maze[x][y].set_wall(direction)
-    dx, dy = DIR_OFFSETS[direction]
-    nx, ny = x + dx, y + dy
-    if 0 <= nx < SIZE and 0 <= ny < SIZE:
-        maze[nx][ny].set_wall(OPPOSITE[direction])
-
-def flood_fill(goal_x, goal_y):
-    for row in maze:
-        for cell in row:
-            cell.distance = 255
-            cell.visited = False
-
-    queue = deque()
-    maze[goal_x][goal_y].distance = 0
-    queue.append((goal_x, goal_y))
-
-    while queue:
-        x, y = queue.popleft()
-        maze[x][y].visited = True
-        for direction in DIRS:
-            if maze[x][y].has_wall(direction):
-                continue
-            dx, dy = DIR_OFFSETS[direction]
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < SIZE and 0 <= ny < SIZE:
-                new_dist = maze[x][y].distance + 1
-                if maze[nx][ny].distance > new_dist:
-                    maze[nx][ny].distance = new_dist
-                    queue.append((nx, ny))
-
-# ---- PYGAME: VISUALIZAÇÃO ----
-def draw_maze(screen, font):
-    for x in range(SIZE):
-        for y in range(SIZE):
-            cell = maze[x][y]
-            screen_x = MARGIN + y * CELL_SIZE
-            screen_y = MARGIN + x * CELL_SIZE
-
-            # Célula preenchida se visitada
-            if cell.visited:
-                pygame.draw.rect(screen, (200, 200, 255), (screen_x, screen_y, CELL_SIZE, CELL_SIZE))
-
-            # Desenha as paredes
-            if cell.has_wall(NORTH):
-                pygame.draw.line(screen, (0,0,0), (screen_x, screen_y), (screen_x + CELL_SIZE, screen_y), WALL_WIDTH)
-            if cell.has_wall(EAST):
-                pygame.draw.line(screen, (0,0,0), (screen_x + CELL_SIZE, screen_y), (screen_x + CELL_SIZE, screen_y + CELL_SIZE), WALL_WIDTH)
-            if cell.has_wall(SOUTH):
-                pygame.draw.line(screen, (0,0,0), (screen_x, screen_y + CELL_SIZE), (screen_x + CELL_SIZE, screen_y + CELL_SIZE), WALL_WIDTH)
-            if cell.has_wall(WEST):
-                pygame.draw.line(screen, (0,0,0), (screen_x, screen_y), (screen_x, screen_y + CELL_SIZE), WALL_WIDTH)
-
-            # Mostra a distância
-            if cell.distance != 255:
-                text = font.render(str(cell.distance), True, (50, 50, 50))
-                screen.blit(text, (screen_x + 5, screen_y + 5))
-
-# ---- EXEMPLO: TESTE DE PAREDES ----
-# Adiciona algumas paredes manualmente
-add_wall(0, 0, EAST)
-add_wall(0, 1, SOUTH)
-add_wall(1, 1, WEST)
-add_wall(1, 0, SOUTH)
-add_wall(2, 0, EAST)
-
-# Calcula a distância até o centro
-flood_fill(7, 7)
-
-# ---- LOOP PRINCIPAL DO PYGAME ----
+# --- PYGAME SETUP ---
 pygame.init()
 screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
-pygame.display.set_caption("Micromouse Maze Viewer")
-font = pygame.font.SysFont(None, 18)
+pygame.display.set_caption("Labirinto do Micromouse")
 clock = pygame.time.Clock()
 
+# --- PLAYER ---
+mouse_pos = [0, 0]  # Posição inicial (linha, coluna)
+direcao = 'N'  # Direção inicial
+
+
+# --- FUNÇÃO DE DESENHO ---
+def draw_maze():
+    screen.fill((255, 255, 255))
+
+    for (x, y, dir) in WALL_LIST:
+        screen_x = MARGIN + y * CELL_SIZE
+        screen_y = MARGIN + x * CELL_SIZE
+        line = DIR_LINES[dir](screen_x, screen_y)
+        pygame.draw.line(screen, (0, 0, 0), line[0], line[1], WALL_WIDTH)
+    
+        # Desenhar o mouse
+    # Centro da célula
+    center_x = MARGIN + mouse_pos[1] * CELL_SIZE + CELL_SIZE // 2
+    center_y = MARGIN + mouse_pos[0] * CELL_SIZE + CELL_SIZE // 2
+
+    rect_size = CELL_SIZE // 2
+    rect_offset = rect_size // 2
+
+    # Desenhar o corpo do mouse (quadrado vermelho centralizado)
+    pygame.draw.rect(screen, (255, 0, 0), (center_x - rect_offset, center_y - rect_offset, rect_size, rect_size))
+
+    # Desenhar a direção do mouse (seta azul)
+    arrow_size = CELL_SIZE // 4
+    if direcao == 'N':
+        pygame.draw.polygon(screen, (0, 0, 255), [
+            (center_x, center_y - rect_offset),  # ponta
+            (center_x - arrow_size // 2, center_y - rect_offset - arrow_size),
+            (center_x + arrow_size // 2, center_y - rect_offset - arrow_size)
+        ])
+    elif direcao == 'S':
+        pygame.draw.polygon(screen, (0, 0, 255), [
+            (center_x, center_y + rect_offset),
+            (center_x - arrow_size // 2, center_y + rect_offset + arrow_size),
+            (center_x + arrow_size // 2, center_y + rect_offset + arrow_size)
+        ])
+    elif direcao == 'E':
+        pygame.draw.polygon(screen, (0, 0, 255), [
+            (center_x + rect_offset, center_y),
+            (center_x + rect_offset + arrow_size, center_y - arrow_size // 2),
+            (center_x + rect_offset + arrow_size, center_y + arrow_size // 2)
+        ])
+    elif direcao == 'W':
+        pygame.draw.polygon(screen, (0, 0, 255), [
+            (center_x - rect_offset, center_y),
+            (center_x - rect_offset - arrow_size, center_y - arrow_size // 2),
+            (center_x - rect_offset - arrow_size, center_y + arrow_size // 2)
+        ])
+
+
+
+
+def has_wall(x, y, dir):
+    return (x, y, dir) in WALL_LIST
+
+
+# --- LOOP PRINCIPAL ---
 running = True
 while running:
-    screen.fill((255, 255, 255))
-    draw_maze(screen, font)
+    draw_maze()
     pygame.display.flip()
     clock.tick(30)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+
+        keys = pygame.key.get_pressed()
+    x, y = mouse_pos
+
+    if keys[pygame.K_UP] and not has_wall(x, y, 'N') and not has_wall(x - 1, y, 'S'):
+        mouse_pos[0] -= 1
+        direcao = 'N'
+
+    elif keys[pygame.K_DOWN] and not has_wall(x, y, 'S') and not has_wall(x + 1, y, 'N'):
+        mouse_pos[0] += 1
+        direcao = 'S'
+
+    elif keys[pygame.K_LEFT] and not has_wall(x, y, 'W') and not has_wall(x, y - 1, 'E'):
+        mouse_pos[1] -= 1
+        direcao = 'W'
+
+    elif keys[pygame.K_RIGHT] and not has_wall(x, y, 'E') and not has_wall(x, y + 1, 'W'):
+        mouse_pos[1] += 1
+        direcao = 'E'
+
 
 pygame.quit()
