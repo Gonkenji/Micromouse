@@ -20,8 +20,8 @@ for linha in range(maze_size):
         x = coluna * cell
         y = linha * cell
 
-        if maze_matriz[linha, coluna] == 1 and linha % 2 == 0 and coluna % 2 == 0:
+        if maze_matriz[linha, coluna] == 1 and coluna % 2 != 0:
             print(linha,coluna, (x, y), (x + cell, y))
 
-        if maze_matriz[linha, coluna] == 1 and linha % 2 != 0:
+        if maze_matriz[linha, coluna] == 1 and coluna % 2 == 0:
             print(linha,coluna, (x, y), (x, y + cell))

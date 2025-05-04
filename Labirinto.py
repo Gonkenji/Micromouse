@@ -15,7 +15,21 @@ pygame.display.set_caption("Maze Game")
 white = (255, 255, 255)
 red = (255, 0, 0)
 
-# Maze generation (simplified recursive backtracker)
+# Maze parameters
+maze_size = 31  # Must be odd for this generation method
+maze_matriz = np.zeros((maze_size, maze_size), dtype=int)
+cell = 30
+
+for linhas in range(maze_size):
+    for colunas in range(maze_size):
+        if linhas % 2 != 0 and colunas % 2 == 0:  #editar verticais
+            maze_matriz[linhas, maze_size-1] = 1
+            maze_matriz[linhas, 0] = 1
+        
+        if linhas % 2 == 0 and colunas % 2 != 0: #editar horizontais
+            maze_matriz[0, colunas] = 1
+            maze_matriz[maze_size -1, colunas] = 1
+
 def generate_maze(maze_size, red, cell):
     for linha in range(maze_size):
         if linha % 2 == 0:
@@ -40,24 +54,6 @@ def generate_maze(maze_size, red, cell):
                     #print(f"Vert: ({linha},{coluna}) - de ({x},{y_vert}) até ({x},{y_vert + cell})")
     return
 
-# Maze parameters
-maze_size = 11  # Must be odd for this generation method
-maze_matriz = np.zeros((maze_size, maze_size), dtype=int)
-cell = 30
-
-for i in range(maze_size):
-    maze_matriz[i, 0] = 1
-    maze_matriz[0, i] = 1
-    maze_matriz[maze_size - 1, i] = 1
-    
-print(maze_matriz)
-
-print("---")
-
-for i in range(maze_size):
-    for j in range(maze_size):
-        if i % 2 != 0:
-            maze_matriz[i, maze_size-1] = 1
 
 print(maze_matriz)
 
