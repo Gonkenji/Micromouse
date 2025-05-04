@@ -1,52 +1,78 @@
 import pygame
 import random
+import numpy as np
 
 # Initialize Pygame
 pygame.init()
 
 # Screen dimensions
 screen_width = 800
-screen_height = 600
+screen_height = 800
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Maze Game")
 
 # Colors
 white = (255, 255, 255)
-black = (0, 0, 0)
-blue = (0, 0, 255)
-green = (0, 255, 0)
-
-# Player
-player_size = 20
-player_x = 50
-player_y = 50
-player_speed = 5
+red = (255, 0, 0)
 
 # Maze generation (simplified recursive backtracker)
-def generate_maze(n):
-    maze = [[1 for _ in range(n)] for _ in range(n)]  # 1 represents a wall
-    def carve_path(x, y):
-        maze[y][x] = 0  # 0 represents a path
-        directions = [(0, 2), (2, 0), (0, -2), (-2, 0)]
-        random.shuffle(directions)
-        for dx, dy in directions:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < n and 0 <= ny < n and maze[ny][nx] == 1:
-                maze[ny - dy // 2][nx - dx // 2] = 0
-                carve_path(nx, ny)
-    carve_path(1, 1)
-    return maze
+def generate_maze(maze_size, red, cell):
+    for linha in range(maze_size):
+        if linha % 2 == 0:
+            y = (linha // 2) * cell  # posição horizontal para linhas pares
+
+        for coluna in range(maze_size):
+            x = (coluna // 2) * cell  # reinicia x a cada coluna par
+
+            # Paredes horizontais (linha par, coluna ímpar)
+            if linha % 2 == 0 and coluna % 2 != 0:
+                x += cell  # desloca para início da parede
+                if maze_matriz[linha, coluna] == 1:
+                    pygame.draw.line(screen, red, (x, y), (x + cell, y))
+                    #print(f"Horiz: ({linha},{coluna}) - de ({x},{y}) até ({x + cell},{y})")
+
+            # Paredes verticais (linha ímpar, coluna par)
+            elif linha % 2 != 0 and coluna % 2 == 0:
+                y_vert = (linha // 2) * cell
+                x += cell  # desloca para início da parede
+                if maze_matriz[linha, coluna] == 1:
+                    pygame.draw.line(screen, red, (x, y_vert), (x, y_vert + cell))
+                    #print(f"Vert: ({linha},{coluna}) - de ({x},{y_vert}) até ({x},{y_vert + cell})")
+    return
 
 # Maze parameters
-maze_size = 21  # Must be odd for this generation method
-maze = generate_maze(maze_size)
-cell_size = 20
+maze_size = 11  # Must be odd for this generation method
+maze_matriz = np.zeros((maze_size, maze_size), dtype=int)
+cell = 30
 
-# Game loop
+for i in range(maze_size):
+    maze_matriz[i, 0] = 1
+    maze_matriz[0, i] = 1
+    maze_matriz[maze_size - 1, i] = 1
+    
+print(maze_matriz)
+
+print("---")
+
+for i in range(maze_size):
+    for j in range(maze_size):
+        if i % 2 != 0:
+            maze_matriz[i, maze_size-1] = 1
+
+print(maze_matriz)
+
 running = True
+k = 1
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LEFT and player_x > 0 and maze[int(player_y // cell_size)][int((player_x - player_speed) // cell_size)] == 
+
+    if k:
+        k = 0
+        screen.fill(white)
+        generate_maze(maze_size, red, cell)
+
+    pygame.display.flip()
+
+# Quit Pygame
