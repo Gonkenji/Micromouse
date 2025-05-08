@@ -3,68 +3,34 @@ import time
 import math
 import random
 
-objetivo = [
-    (150, 50),
-    (300, 180),
-    (400, 300),
-    (500, 450),
-    (630, 630),   # próximo de (700, 700)
-    (700, 700),
-    (600, 800),
-    (450, 800),
-    (300, 800),
-    (180, 700),
-    (100, 600),
-    (80, 450),
-    (85, 250),
-    (95, 120)  # fecha o caminho
-] 
-
-
+objetivo = [(500,500), (100,100), (100,500)]
 obj = 0
-obj2 = 0
-objr = 0
 
-N_LINHAS    = 20
+objr = [0 for _ in range(10)]
+
+N_LINHAS    = 16
 TAM_CELULA  = 50
 LARG_PAREDE = 2
 MARGEM      = 20
-LARG_JANELA = 1000
-ALT_JANELA  = 1000
+LARG_JANELA = N_LINHAS * TAM_CELULA + 2 * MARGEM
+ALT_JANELA  = LARG_JANELA
 
 ACELERACAO   = 200.0   # px/s²
 VEL_MAXIMA   = 200.0   # px/s
 ATRITO       = 0.8    # percentual de redução por segundo
 
-ACELERACAO_ANGULAR = 360.0 # graus/s²
+ACELERACAO_ANGULAR = 180.0 # graus/s²
 VEL_ANGULAR_MAXIMA = 180.0 # graus/s
 ATRITO_ANGULAR     = 0.8   # Mais forte para parar giros rapidamente
 
-#azul
-kpa = 60
+
+kpa = 50
 kia = 0
-kda = 25
+kda = 2
 
-kpang = 360
-kiang = 0
-kdang = 180
-
-kpaa = 0
-kiaa = 0
-kdaa = 0
-
-#verde
-kpa2 = 60
-kia2 = 0
-kda2 = 25
-
-kpang2 = 180
-kiang2 = 0
-kdang2 = 360
-
-kpaa2 = 0
-kiaa2 = 0
-kdaa2 = 0
+kpang = 30
+kiang = 5
+kdang = 2
 
 erroi = [0,0,0]
 errod = [0,0,0]
@@ -80,7 +46,7 @@ pygame.display.set_caption("Micromouse")
 relogio = pygame.time.Clock()
 
 class Robo:
-    def __init__(self, kpa, kpang, kia, kiang, kda, kdang, kpaa, kiaa, kdaa):
+    def __init__(self, kpa, kpang, kia, kiang, kda, kdang, cor):
         self.x = TAM_CELULA
         self.y = TAM_CELULA
         self.vx = 0.0
@@ -96,12 +62,7 @@ class Robo:
         self.kiang = kiang
         self.kda = kda
         self.kdang = kdang
-        self.kpaa = kpaa
-        self.kiaa = kiaa
-        self.kdaa = kdaa
-        self.erroi = [0,0,0]
-        self.errod = [0,0,0]
-        self.erroant = [0,0,0]
+        self.cor = cor
 
     def mover(self):
         # --- Atualização Angular ---
@@ -115,8 +76,6 @@ class Robo:
 
         elif self.v_angular < -VEL_ANGULAR_MAXIMA:
             self.v_angular = -VEL_ANGULAR_MAXIMA
-
-        #print(self.a_angular)
 
         # --- Atualização Linear ---
 
@@ -154,70 +113,57 @@ class Robo:
             errox /= dist
             erroy /= dist
 
-        self.erroi[0] += errox * dt
-        self.erroi[1] += erroy * dt
-        self.erroi[2] += erroang * dt
 
-        self.errod[0] = (errox - self.erroant[0])/ dt
-        self.errod[1] = (erroy - self.erroant[1])/ dt
-        self.errod[2] = (erroang - self.erroant[2])/ dt   
+        erroi[0] += errox * dt
+        erroi[1] += erroy * dt
+        erroi[2] += erroang * dt
 
-        if abs(erroang - self.erroant[2])> 2:
-            self.errod[2] = 0
+        errod[0] = (errox - erroant[0])/ dt
+        errod[1] = (erroy - erroant[1])/ dt
+        errod[2] = (erroang - erroant[2])/ dt
 
-        
-        xproporcional = self.kpa * errox - self.kpaa * abs(erroang)
-        xderivativo = self.kda * self.errod[0] - self.kdaa * abs(erroang)
-        xintegral = self.kia * self.erroi[0] - self.kiaa * abs(erroang)
+        #print(errod[0])
 
-        yproporcional = self.kpa * erroy - self.kpaa * abs(erroang)
-        yderivativo = self.kda * self.errod[1] - self.kdaa * abs(erroang)
-        yintegral = self.kia * self.erroi[1] - self.kiaa * abs(erroang)
-
-    
         if errox > 0:
-            self.ax = abs(math.cos(math.radians(self.angulo)) * (xproporcional + xintegral + xderivativo))
+            self.ax = math.cos(math.radians(self.angulo)) * (errox * self.kpa + self.kia * erroi[0] + self.kda * errod[0])
             
 
         elif errox < 0:
-            self.ax = -math.cos(math.radians(self.angulo)) * (xproporcional + xintegral + xderivativo)
+            self.ax = -math.cos(math.radians(self.angulo)) * (errox * self.kpa + self.kia * erroi[0] + self.kda * errod[0])
 
         else:
             self.ax = 0
 
         if erroy > 0:
-            self.ay = math.sin(math.radians(self.angulo)) * (yproporcional + yintegral + yderivativo)
+            self.ay = math.sin(math.radians(self.angulo)) * (erroy * self.kpa + self.kia * erroi[1] + self.kda * errod[1])
 
         elif erroy < 0:
-            self.ay = -math.sin(math.radians(self.angulo)) * (yproporcional + yintegral + yderivativo)
+            self.ay = -math.sin(math.radians(self.angulo)) * (erroy * self.kpa + self.kia * erroi[1] + self.kda * errod[1])
 
         else:
             self.ay = 0
 
-        if erroang >= math.pi:
+        if erroang > math.pi:
             erroang -= 2 * math.pi
         elif erroang < -math.pi:
             erroang += 2 * math.pi
 
-        self.a_angular = erroang * self.kpang + self.kiang * self.erroi[2] + self.kdang * self.errod[2]
-
-        self.erroant[0] = errox
-        self.erroant[1] = erroy
-        self.erroant[2] = erroang
+        self.a_angular = erroang * self.kpang + self.kiang * erroi[2] + self.kdang * errod[2]
 
         if abs(self.x - objetivo[obj][0]) < 10 and abs(self.y - objetivo[obj][1]) < 10 and obj < len(objetivo):
             for i in range(3):
-                self.erroi[i] = 0
-                self.errod[i] = 0
-                self.erroant[i] = 0
+                erroi[i] = 0
+                errod[i] = 0
+                erroant[i] = 0
+                
+
             obj += 1
         
         if obj == len(objetivo):
             obj = 0 
-            
         return obj
         
-    def desenhar(self, superficie, cor):
+    def desenhar(self, superficie):
 
         for i in range(len(objetivo)):
             pygame.draw.circle(superficie, (255, 0, 0), (objetivo[i][0], objetivo[i][1]), 5)
@@ -238,7 +184,7 @@ class Robo:
             (centro_x - tamanho_seta, centro_y - tamanho_seta/2), # Ponta
             (centro_x + tamanho_seta, centro_y)  # Base direita
         ]
-        pygame.draw.polygon(robo_surf, cor, pontos_seta)
+        pygame.draw.polygon(robo_surf, self.cor, pontos_seta)
 
         # Rotaciona a superfície do robô
         # Pygame rotaciona anti-horário, então usamos o ângulo negativo
@@ -256,8 +202,12 @@ class Robo:
 
 
 
-robo = Robo(kpa, kpang, kia, kiang, kda, kdang, kpaa, kiaa, kdaa)
-robo2 = Robo(kpa2, kpang2, kia2, kiang2, kda2, kdang2, kpaa2, kiaa2, kdaa2)
+robo = Robo(kpa, kpang, kia, kiang, kda, kdang, (0, 0, 255))
+
+robos = []
+
+for i in range(10):
+    robos.append(Robo(random.uniform(-100,100),random.randint(-180,180),random.uniform(-50,50),random.randint(-90,90),random.uniform(-50,50),random.randint(-90,90), (random.randint(0,255),random.randint(0,255),random.randint(0,255))))
 
 running = True
 while running:
@@ -287,14 +237,18 @@ while running:
         robo.a_angular = ACELERACAO_ANGULAR
 
     obj = robo.controle(obj)
-    obj2 = robo2.controle(obj2)
+
+    for n,r in enumerate(robos):
+        objr[n] = r.controle(objr[n])
 
     janela.fill((255, 255, 255))
 
     robo.mover()
-    robo.desenhar(janela, (0, 0, 255))
-    robo2.mover()
-    robo2.desenhar(janela, (0, 255, 0))
+    robo.desenhar(janela)
+
+    for i in robos:
+        i.mover()
+        i.desenhar(janela)
 
     pygame.display.flip()
 

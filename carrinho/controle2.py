@@ -18,7 +18,7 @@ objetivo = [
     (80, 450),
     (85, 250),
     (95, 120)  # fecha o caminho
-] 
+]
 
 
 obj = 0
@@ -36,37 +36,24 @@ ACELERACAO   = 200.0   # px/s²
 VEL_MAXIMA   = 200.0   # px/s
 ATRITO       = 0.8    # percentual de redução por segundo
 
-ACELERACAO_ANGULAR = 360.0 # graus/s²
+ACELERACAO_ANGULAR = 180.0 # graus/s²
 VEL_ANGULAR_MAXIMA = 180.0 # graus/s
 ATRITO_ANGULAR     = 0.8   # Mais forte para parar giros rapidamente
 
 #azul
 kpa = 60
-kia = 0
 kda = 25
 
 kpang = 360
-kiang = 0
 kdang = 180
-
-kpaa = 0
-kiaa = 0
-kdaa = 0
 
 #verde
 kpa2 = 60
-kia2 = 0
 kda2 = 25
 
 kpang2 = 180
-kiang2 = 0
 kdang2 = 360
 
-kpaa2 = 0
-kiaa2 = 0
-kdaa2 = 0
-
-erroi = [0,0,0]
 errod = [0,0,0]
 erroant = [0,0,0]
 
@@ -80,7 +67,7 @@ pygame.display.set_caption("Micromouse")
 relogio = pygame.time.Clock()
 
 class Robo:
-    def __init__(self, kpa, kpang, kia, kiang, kda, kdang, kpaa, kiaa, kdaa):
+    def __init__(self, kpa, kpang, kda, kdang):
         self.x = TAM_CELULA
         self.y = TAM_CELULA
         self.vx = 0.0
@@ -92,14 +79,8 @@ class Robo:
         self.a_angular = 0.0
         self.kpa = kpa
         self.kpang = kpang
-        self.kia = kia
-        self.kiang = kiang
         self.kda = kda
         self.kdang = kdang
-        self.kpaa = kpaa
-        self.kiaa = kiaa
-        self.kdaa = kdaa
-        self.erroi = [0,0,0]
         self.errod = [0,0,0]
         self.erroant = [0,0,0]
 
@@ -115,8 +96,6 @@ class Robo:
 
         elif self.v_angular < -VEL_ANGULAR_MAXIMA:
             self.v_angular = -VEL_ANGULAR_MAXIMA
-
-        #print(self.a_angular)
 
         # --- Atualização Linear ---
 
@@ -143,78 +122,86 @@ class Robo:
         self.a_angular = 0.0
 
     def controle(self, obj):
-        errox = objetivo[obj][0] - self.x
-        erroy = objetivo[obj][1] - self.y
-        erroang = math.atan2(erroy, errox) - math.radians(self.angulo)
 
-        dist = math.hypot(errox, erroy)
+        errox = []
+        erroy = []
+        erroang = []
+
+        for i in range(3):
+            if obj == len(objetivo) - i:
+                obj = -i
+            errox.append(objetivo[obj+i][0] - self.x)
+            erroy.append(objetivo[obj+i][1] - self.y)
+            erroang.append(math.atan2(erroy[i], errox[i]) - math.radians(self.angulo))
+
+        while abs(erroang[0] - erroang[1] - erroang[2]) < 0.01:
+            obj += 1
+
+            for i in range(3):
+                if obj == len(objetivo) - i:
+                    obj = -i
+                errox.append(objetivo[obj][0] - self.x)
+                erroy.append(objetivo[obj][1] - self.y)
+                erroang.append(math.atan2(erroy[i], errox[i]) - math.radians(self.angulo))
+
+        dist = math.hypot(errox[0], erroy[0])
 
         # 3. Normaliza o vetor direção
         if dist != 0:
-            errox /= dist
-            erroy /= dist
+            errox[0] /= dist
+            erroy[0] /= dist
 
-        self.erroi[0] += errox * dt
-        self.erroi[1] += erroy * dt
-        self.erroi[2] += erroang * dt
+        self.errod[0] = (errox[0] - self.erroant[0])/ dt
+        self.errod[1] = (erroy[0] - self.erroant[1])/ dt
+        self.errod[2] = (erroang[0] - self.erroant[2])/ dt   
 
-        self.errod[0] = (errox - self.erroant[0])/ dt
-        self.errod[1] = (erroy - self.erroant[1])/ dt
-        self.errod[2] = (erroang - self.erroant[2])/ dt   
-
-        if abs(erroang - self.erroant[2])> 2:
+        if abs(erroang[0] - self.erroant[2])> 2:
             self.errod[2] = 0
 
-        
-        xproporcional = self.kpa * errox - self.kpaa * abs(erroang)
-        xderivativo = self.kda * self.errod[0] - self.kdaa * abs(erroang)
-        xintegral = self.kia * self.erroi[0] - self.kiaa * abs(erroang)
 
-        yproporcional = self.kpa * erroy - self.kpaa * abs(erroang)
-        yderivativo = self.kda * self.errod[1] - self.kdaa * abs(erroang)
-        yintegral = self.kia * self.erroi[1] - self.kiaa * abs(erroang)
+        xproporcional = self.kpa * errox[0]
+        xderivativo = self.kda * self.errod[0]
+
+        yproporcional = self.kpa * erroy[0]
+        yderivativo = self.kda * self.errod[1]
 
     
-        if errox > 0:
-            self.ax = abs(math.cos(math.radians(self.angulo)) * (xproporcional + xintegral + xderivativo))
+        if errox[0] > 0:
+            self.ax = abs(math.cos(math.radians(self.angulo)) * (xproporcional + xderivativo))
             
 
-        elif errox < 0:
-            self.ax = -math.cos(math.radians(self.angulo)) * (xproporcional + xintegral + xderivativo)
+        elif errox[0] < 0:
+            self.ax = -math.cos(math.radians(self.angulo)) * (xproporcional + xderivativo)
 
         else:
             self.ax = 0
 
-        if erroy > 0:
-            self.ay = math.sin(math.radians(self.angulo)) * (yproporcional + yintegral + yderivativo)
+        if erroy[0] > 0:
+            self.ay = math.sin(math.radians(self.angulo)) * (yproporcional + yderivativo)
 
-        elif erroy < 0:
-            self.ay = -math.sin(math.radians(self.angulo)) * (yproporcional + yintegral + yderivativo)
+        elif erroy[0] < 0:
+            self.ay = -math.sin(math.radians(self.angulo)) * (yproporcional + yderivativo)
 
         else:
             self.ay = 0
 
-        if erroang >= math.pi:
-            erroang -= 2 * math.pi
-        elif erroang < -math.pi:
-            erroang += 2 * math.pi
+        if erroang[0] >= math.pi:
+            erroang[0] -= 2 * math.pi
+        elif erroang[0] < -math.pi:
+            erroang[0] += 2 * math.pi
 
-        self.a_angular = erroang * self.kpang + self.kiang * self.erroi[2] + self.kdang * self.errod[2]
+        self.a_angular = erroang[0] * self.kpang + self.kdang * self.errod[2]
 
-        self.erroant[0] = errox
-        self.erroant[1] = erroy
-        self.erroant[2] = erroang
+        self.erroant[0] = errox[0]
+        self.erroant[1] = erroy[0]
+        self.erroant[2] = erroang[0]
 
         if abs(self.x - objetivo[obj][0]) < 10 and abs(self.y - objetivo[obj][1]) < 10 and obj < len(objetivo):
             for i in range(3):
-                self.erroi[i] = 0
                 self.errod[i] = 0
                 self.erroant[i] = 0
             obj += 1
         
-        if obj == len(objetivo):
-            obj = 0 
-            
         return obj
         
     def desenhar(self, superficie, cor):
@@ -256,8 +243,8 @@ class Robo:
 
 
 
-robo = Robo(kpa, kpang, kia, kiang, kda, kdang, kpaa, kiaa, kdaa)
-robo2 = Robo(kpa2, kpang2, kia2, kiang2, kda2, kdang2, kpaa2, kiaa2, kdaa2)
+robo = Robo(kpa, kpang, kda, kdang)
+robo2 = Robo(kpa2, kpang2, kda2, kdang2)
 
 running = True
 while running:
